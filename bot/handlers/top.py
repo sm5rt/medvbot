@@ -1,13 +1,13 @@
+# bot/handlers/top.py
 import asyncio
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ContextTypes
-from bot.services.db import get_db
-from bot.services.season import get_season_config, calculate_progress
+from bot.services.db import get_all_users, get_cache_by_tag
+from bot.services.season import get_season_config_async, calculate_progress
 
 async def top_trophies(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db = get_db()
-    users = await asyncio.to_thread(lambda: list(db["users"].find({})))
-    cache = {p["brawl_tag"]: p for p in await asyncio.to_thread(lambda: list(db["players_cache"].find({})))}
+    users = get_all_users()
+    cache = {u["brawl_tag"]: get_cache_by_tag(u["brawl_tag"]) for u in users}
 
     players = []
     for u in users:
@@ -24,10 +24,9 @@ async def top_trophies(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _send_top_message(update, text, "trophy")
 
 async def top_progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db = get_db()
-    users = await asyncio.to_thread(lambda: list(db["users"].find({})))
-    cache = {p["brawl_tag"]: p for p in await asyncio.to_thread(lambda: list(db["players_cache"].find({})))}
-    season = await get_season_config()
+    users = get_all_users()
+    cache = {u["brawl_tag"]: get_cache_by_tag(u["brawl_tag"]) for u in users}
+    season = await get_season_config_async()
 
     players = []
     for u in users:
@@ -52,9 +51,9 @@ async def _send_top_message(update, text, mode):
         buttons.append([InlineKeyboardButton("🏆 К топу кубков", callback_data="top_trophies")])
     buttons.append([InlineKeyboardButton("🔙 Назад в навигатор", callback_data="back_to_navigator")])
 
-    photo_path = "assets/top.jpg"
     from pathlib import Path
-    if Path(photo_path).exists():
+    photo_path = Path("assets/top.jpg")
+    if photo_path.exists():
         await update.callback_query.message.reply_photo(
             photo=open(photo_path, "rb"),
             caption=text,
