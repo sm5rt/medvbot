@@ -1,6 +1,8 @@
 # main.py
 import asyncio
 import logging
+import nest_asyncio
+nest_asyncio.apply()
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -100,3 +102,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
