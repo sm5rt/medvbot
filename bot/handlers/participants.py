@@ -3,8 +3,8 @@ import asyncio
 from datetime import datetime, timezone
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ContextTypes
-from bot.services.db import get_all_users, get_cache_by_tag, get_season_config_async
-from bot.services.season import calculate_progress
+from bot.services.db import get_all_users, get_cache_by_tag
+from bot.services.season import get_season_config_async, calculate_progress
 
 async def participants_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users = get_all_users()
@@ -33,8 +33,8 @@ async def show_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     tag = query.data.split("_", 1)[1]
 
-    user = get_all_users()
-    user = next((u for u in user if u["brawl_tag"] == tag), None)
+    users = get_all_users()
+    user = next((u for u in users if u["brawl_tag"] == tag), None)
     if not user:
         await query.edit_message_text("❌ Игрок не найден.")
         return
@@ -72,7 +72,4 @@ async def show_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Назад к списку", callback_data="participants_list")]
-        ])
-    )
+        reply
