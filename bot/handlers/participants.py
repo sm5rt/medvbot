@@ -72,4 +72,8 @@ async def show_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Назад к списку", callback_data="participants_list")]
+        ])
+    )
+
