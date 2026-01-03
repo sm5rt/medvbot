@@ -1,7 +1,4 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BRAWL_API_TOKEN = os.getenv("BRAWL_API_TOKEN")
