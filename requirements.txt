@@ -1,4 +1,0 @@
-python-telegram-bot[job-queue]>=20.0
-pymongo>=4.0
-requests>=2.25
-dnspython>=2.0
