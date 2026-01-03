@@ -1,8 +1,12 @@
+# bot/handlers/admin.py
 import asyncio
 from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
-from bot.services.db import get_db
+from bot.services.db import (
+    get_all_users, get_cache_by_tag, log_club_event,
+    get_recent_history, set_custom_norm, update_season_config
+)
 
 SEASON_START, SEASON_END, ZERO_NORM = range(3)
 SET_CUSTOM_NORM = range(1)
@@ -48,16 +52,10 @@ async def zero_norm_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         threshold = int(update.message.text.strip())
         season = context.user_data["new_season"]
-        db = get_db()
-        await asyncio.to_thread(
-            db["season_config"].update_one,
-            {}, 
-            {"$set": {
-                "start_date": season["start"],
-                "end_date": season["end"],
-                "zero_norm_threshold": threshold
-            }},
-            upsert=True
+        update_season_config(
+            start=season["start"].isoformat(),
+            end=season["end"].isoformat(),
+            threshold=threshold
         )
         await update.message.reply_text("✅ Сезон обновлён!")
         return ConversationHandler.END
@@ -67,10 +65,7 @@ async def zero_norm_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- /history ---
 async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db = get_db()
-    history = await asyncio.to_thread(
-        lambda: list(db["club_history"].find().sort("timestamp", -1).limit(20))
-    )
+    history = get_recent_history()
     if not history:
         await update.callback_query.message.reply_text("📜 История пуста.")
         return
@@ -78,18 +73,17 @@ async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "📜 *Последние события:*\n"
     for h in history:
         action = {"joined": "вошёл", "left": "вышел", "registered": "зарегистрировался"}[h["action"]]
-        ts = h["timestamp"].strftime("%d.%m.%Y %H:%M")
+        ts = datetime.fromisoformat(h["timestamp"]).strftime("%d.%m.%Y %H:%M")
         text += f"{ts} — {h.get('brawl_tag', '?')} {action}\n"
     await update.callback_query.message.reply_text(text, parse_mode="Markdown")
 
 # --- /we ---
 async def admin_we(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db = get_db()
-    users = await asyncio.to_thread(lambda: list(db["users"].find({})))
-    cache = {p["brawl_tag"]: p for p in await asyncio.to_thread(lambda: list(db["players_cache"].find({})))}
+    users = get_all_users()
+    cache = {u["brawl_tag"]: get_cache_by_tag(u["brawl_tag"]) for u in users}
     buttons = []
     for u in users:
-        name = cache.get(u["brawl_tag"], {}).get("name", u["brawl_tag"])
+        name = cache[u["brawl_tag"]]["name"] if cache[u["brawl_tag"]] else u["brawl_tag"]
         buttons.append([InlineKeyboardButton(name, callback_data=f"set_norm_{u['brawl_tag']}")])
     await update.callback_query.message.reply_text(
         "🐻 *Выберите игрока для настройки нормы:*",
@@ -106,14 +100,13 @@ async def start_set_norm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_custom_norm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tag = context.user_data["norm_tag"]
-    db = get_db()
     try:
         value = int(update.message.text.strip())
         if value <= 0:
-            await asyncio.to_thread(db["users"].update_one, {"brawl_tag": tag}, {"$unset": {"custom_norm": ""}})
+            set_custom_norm(tag, None)
             msg = "🔄 Норма сброшена к общей."
         else:
-            await asyncio.to_thread(db["users"].update_one, {"brawl_tag": tag}, {"$set": {"custom_norm": value}})
+            set_custom_norm(tag, value)
             msg = f"✅ Норма установлена: {value}"
         await update.message.reply_text(msg)
     except:
