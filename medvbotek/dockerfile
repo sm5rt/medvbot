@@ -1,0 +1,16 @@
+# Dockerfile
+FROM python:3.10-slim
+
+# Устанавливаем только нужное
+WORKDIR /app
+
+# Копируем сначала requirements — для кэширования слоя
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Копируем весь код
+COPY . .
+
+# Запускаем бота
+CMD ["python", "main.py"]
