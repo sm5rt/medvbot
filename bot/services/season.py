@@ -1,24 +1,19 @@
+# bot/services/season.py
 import asyncio
 from datetime import datetime, timezone
-from bot.services.db import get_db
+from bot.services.db import init_season_config, get_season_config
 
 async def ensure_season_config():
-    db = get_db()
-    coll = db["season_config"]
-    existing = await asyncio.to_thread(coll.find_one, {})
-    if not existing:
-        default_config = {
-            "start_date": datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            "end_date": datetime(2026, 2, 5, 10, 24, 0, tzinfo=timezone.utc),
-            "zero_norm_threshold": 15000
-        }
-        await asyncio.to_thread(coll.insert_one, default_config)
-        print("✅ Создана начальная конфигурация сезона: 01.01.2026 – 05.02.2026 10:24 UTC")
+    # Инициализация сезона при старте
+    from config import DB_PATH
+    init_season_config(
+        start="2026-01-01 00:00:00",
+        end="2026-02-05 10:24:00",
+        threshold=15000
+    )
 
-async def get_season_config():
-    db = get_db()
-    coll = db["season_config"]
-    return await asyncio.to_thread(coll.find_one, {})
+async def get_season_config_async():
+    return get_season_config()
 
 def calculate_progress(season, user, current_trophies: int):
     from config import NORM
